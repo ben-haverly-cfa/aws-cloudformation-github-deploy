@@ -87,7 +87,7 @@ describe('Parse Parameters', () => {
     ])
   })
 
-  test('returns parameters list from string', async () => {
+  test('returns parameters list from legacy string', async () => {
     const json = parseParameters(
       'MyParam1=myValue1,MyParam2=myValue2,MyParam2=myValue3'
     )
@@ -102,30 +102,46 @@ describe('Parse Parameters', () => {
       }
     ])
   })
-
-  test('returns parameters list from file', async () => {
-    const filename = 'file://' + path.join(__dirname, 'params.test.json')
-    const json = parseParameters(filename)
-    expect(json).toEqual([
+  test('returns parameters list from yaml string', async () => {
+    const content = fs
+      .readFileSync(path.join(__dirname, 'params.test.yaml'))
+      .toString()
+    const yaml = parseParameters(content)
+    expect(yaml).toEqual([
       {
         ParameterKey: 'MyParam1',
-        ParameterValue: 'myValue1'
+        ParameterValue: 'MyValue1'
       },
       {
         ParameterKey: 'MyParam2',
-        ParameterValue: 'myValue2'
+        ParameterValue: 'MyValue2'
       }
     ])
   })
 
-  test('throws error if file is not found', async () => {
-    const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
-    expect(() => parseParameters(filename)).toThrow()
-  })
+  // test('returns parameters list from file', async () => {
+  //   const filename = 'file://' + path.join(__dirname, 'params.test.json')
+  //   const json = parseParameters(filename)
+  //   expect(json).toEqual([
+  //     {
+  //       ParameterKey: 'MyParam1',
+  //       ParameterValue: 'myValue1'
+  //     },
+  //     {
+  //       ParameterKey: 'MyParam2',
+  //       ParameterValue: 'myValue2'
+  //     }
+  //   ])
+  // })
 
-  test('throws error if json in file cannot be parsed', async () => {
-    const filename =
-      'file://' + path.join(__dirname, 'params-invalid.test.json')
-    expect(() => parseParameters(filename)).toThrow()
-  })
+  // test('throws error if file is not found', async () => {
+  //   const filename = 'file://' + path.join(__dirname, 'params.tezt.json')
+  //   expect(() => parseParameters(filename)).toThrow()
+  // })
+
+  // test('throws error if json in file cannot be parsed', async () => {
+  //   const filename =
+  //     'file://' + path.join(__dirname, 'params-invalid.test.json')
+  //   expect(() => parseParameters(filename)).toThrow()
+  // })
 })

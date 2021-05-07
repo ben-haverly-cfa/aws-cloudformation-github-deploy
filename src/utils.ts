@@ -48,40 +48,63 @@ export function parseNumber(s: string): number | undefined {
 }
 
 export function parseParameters(parameterOverrides: string): Parameter[] {
-  try {
-    const path = new URL(parameterOverrides)
-    const rawParameters = fs.readFileSync(path, 'utf-8')
+  // support for parsing files
+  // try {
+  //   const path = new URL(parameterOverrides)
+  //   const rawParameters = fs.readFileSync(path, 'utf-8')
 
-    return JSON.parse(rawParameters)
-  } catch (err) {
-    if (err.code !== 'ERR_INVALID_URL') {
-      throw err
-    }
-  }
+  //   return JSON.parse(rawParameters)
+  // } catch (err) {
+  //   if (err.code !== 'ERR_INVALID_URL') {
+  //     throw err
+  //   }
+  // }
 
-  const parameters = new Map<string, string>()
-
-  parameterOverrides
-    .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
-    .forEach(parameter => {
-      const [key, value] = parameter.trim().split('=')
-      let param = parameters.get(key)
-      param = !param ? value : [param, value].join(',')
-      if (
-        (param.startsWith("'") && param.endsWith("'")) ||
-        (param.startsWith('"') && param.endsWith('"'))
-      ) {
-        param = param.substring(1, param.length - 1)
+  // Parse string
+  const parameters = new Map<string, string>() // only for legacy
+  let parameters_obj
+  // Check for legacy syntax
+  if (
+    parameterOverrides.split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g).length >=
+      1 &&
+    parameterOverrides
+      .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)[0]
+      .split('=').length == 2
+  ) {
+    parameterOverrides
+      .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
+      .forEach(parameter => {
+        const [key, value] = parameter.trim().split('=')
+        let param = parameters.get(key)
+        param = !param ? value : [param, value].join(',')
+        if (
+          (param.startsWith("'") && param.endsWith("'")) ||
+          (param.startsWith('"') && param.endsWith('"'))
+        ) {
+          param = param.substring(1, param.length - 1)
+        }
+        parameters.set(key, param)
+      })
+    return [...parameters.keys()].map(key => {
+      return {
+        ParameterKey: key,
+        ParameterValue: parameters.get(key)
       }
-      parameters.set(key, param)
     })
-
-  return [...parameters.keys()].map(key => {
-    return {
-      ParameterKey: key,
-      ParameterValue: parameters.get(key)
+    // Yaml syntax
+  } else if (isValidYAMLString(parameterOverrides)) {
+    parameters_obj = parseYAML(parameterOverrides)
+  } else {
+    // Do Nothing
+  }
+  if (isArray(parameters_obj)) {
+    if (!isAWSified(parameters_obj)) {
+      parameters_obj = awsifyParameters(parameters_obj)
     }
-  })
+  } else if (parameters_obj != undefined) {
+    parameters_obj = awsifyParameters(parameters_obj)
+  }
+  return parameters_obj
 }
 
 export function parseJSON(s: string) {
@@ -131,6 +154,19 @@ export function awsifyTags(tag_obj: any) {
   return aws_tags
 }
 
+export function awsifyParameters(parameter_obj: any) {
+  const aws_parameters = []
+  for (const key in parameter_obj) {
+    if (parameter_obj.hasOwnProperty(key)) {
+      aws_parameters.push({
+        ParameterKey: key,
+        ParameterValue: parameter_obj[key]
+      })
+    }
+  }
+  return aws_parameters
+}
+
 export function isArray(tag_obj: any) {
   try {
     tag_obj.forEach(function (entry: any) {
@@ -141,11 +177,13 @@ export function isArray(tag_obj: any) {
     return false
   }
 }
-export function isAWSified(tag_obj: any) {
+export function isAWSified(obj: any) {
   const aws_tags = []
   let value = true
-  tag_obj.forEach(function (entry: any) {
+  obj.forEach(function (entry: any) {
     if (entry['Key'] && entry['Value']) {
+      value = true
+    } else if (entry['ParameterKey'] && entry['ParameterValue']) {
       value = true
     } else {
       value = false
