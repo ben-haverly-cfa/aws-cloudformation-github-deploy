@@ -25,6 +25,60 @@ The action can be passed a CloudFormation Stack `name` and a `template` file. Th
 
 A few inputs are highlighted below. See [action.yml](action.yml) for the full documentation for this action's inputs and outputs.
 
+#### Parameter Overrides (optional)
+
+Key-value pairs for parameter Overides. This input can be in multiple formats. See all examples below.
+
+- YAML Formatted String:
+```
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
+      with:
+        name: cloudformation-stack-name
+        template: https://s3.amazonaws.com/some-template.yaml
+        parameter-overrides: |
+          SystemTag: AWS_CF_GH_DEPLOY
+          Environment: prod
+```
+
+- YAML Formatted String with Key and Value grouping:
+```
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
+      with:
+        name: cloudformation-stack-name
+        template: https://s3.amazonaws.com/some-template.yaml
+        parameter-overrides: |
+          - ParameterKey: SystemTag
+            ParameterValue: AWS_CF_GH_DEPLOY
+          - ParameterKey: Environment
+            ParameterValue: prod
+```
+
+- Legacy String format
+```
+    - name: Deploy Cloudformation
+      uses: chikin-4x/aws-cloudformation-github-deploy@master
+      with:
+        name: ${{ env.ENVIRONMENT }}-${{ env.NAME }}
+        template: cloudformation.yaml
+        capabilities: CAPABILITY_NAMED_IAM
+        no-fail-on-empty-changeset: 1
+        parameter-overrides: >
+          Name=${{ env.NAME }},
+          Environment=${{ env.ENVIRONMENT }},
+          Bucket=${{ env.BUCKET }},
+          AppArtifact=${{ env.BEANSTALK_ARTIFACT }},
+          AccountAlias=${{ env.ACCOUNT }}
+          ASGMinSize=${{ env.ASG_MIN_SIZE }},
+          ASGMaxSize=${{ env.ASG_MIN_SIZE }},
+          DeleteCWLogs=${{ env.DELETE_CW_LOGS }},
+          EC2IAMRole=${{ env.IAM_ROLE }},
+          PrivateVPCId=${{ env.VPC_ID }},
+          PrivateVPCSubnets="${{ env.VPC_SUBNETS }}",
+          PrivateELBSubnets="${{ env.ELB_SUBNETS }}",
+          ProxyAPISecurityGroup=${{ env.PROXY_SECURITY_GROUP }}
+
+```
+
 #### Tags (OPTIONAL)
 
 Key-value pairs to associate with this stack. This input can be in multiple formats. See all examples below.
