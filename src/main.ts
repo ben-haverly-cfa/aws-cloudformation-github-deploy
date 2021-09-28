@@ -27,7 +27,7 @@ export type Inputs = {
 // The custom client configuration for the CloudFormation clients.
 const defaultClientConfiguration = {
   customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions',
-  region: (new aws.Config()).region
+  region: new aws.Config().region
 }
 
 export async function run(): Promise<void> {
