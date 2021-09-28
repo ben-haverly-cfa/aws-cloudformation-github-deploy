@@ -138,6 +138,17 @@ Key-value pairs to associate with this stack. This input can be in multiple form
 This action relies on the [default behavior of the AWS SDK for Javascript](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) to determine AWS credentials and region.
 Use [the `chikin-4x/configure-aws-credentials` action](https://github.com/aws-actions/configure-aws-credentials) to configure the GitHub Actions environment with environment variables containing AWS credentials and your desired region.
 
+
+
+- If you only need to change the region, you can supply that as a parameter:
+```
+    - uses: chikin-4x/aws-cloudformation-github-deploy@master
+      with:
+        name: cloudformation-stack-name
+        template: https://s3.amazonaws.com/some-template.yaml
+        region: us-west-2
+```
+
 We recommend following [Amazon IAM best practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html) for the AWS credentials used in GitHub Actions workflows, including:
 
 - Do not store credentials in your repository's code. You may use [GitHub Actions secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets) to store credentials and redact credentials from GitHub Actions workflow logs.
