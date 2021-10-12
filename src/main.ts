@@ -25,13 +25,26 @@ export type Inputs = {
 }
 
 // The custom client configuration for the CloudFormation clients.
-const clientConfiguration = {
-  customUserAgent: 'aws-cloudformation-github-deploy-for-github-actions'
-}
+const customUserAgentString =
+  'aws-cloudformation-github-deploy-for-github-actions'
 
 export async function run(): Promise<void> {
   try {
-    const cfn = new aws.CloudFormation({ ...clientConfiguration })
+    // If the user provided a region use it, otherwise use the current region
+    let cfn = new aws.CloudFormation({
+      customUserAgent: customUserAgentString
+    })
+    const region = core.getInput('region', {
+      required: false
+    })
+    if (region.length > 0) {
+      cfn = new aws.CloudFormation({
+        customUserAgent: customUserAgentString,
+        region: region
+      })
+      core.debug('Setting region for cloudformation deployment to ' + region)
+    }
+
     const { GITHUB_WORKSPACE = __dirname } = process.env
 
     // Get inputs
