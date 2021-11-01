@@ -69,7 +69,13 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
       1 &&
     parameterOverrides
       .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)[0]
-      .split('=').length == 2
+      .split('=').length == 2 &&
+    parameterOverrides.match(
+      new RegExp(
+        '(?<pair>(?<key>.+?)(?:(=)(?=(?:[^"]|"[^"]*")*$))(?<value>[^=]+)(?:,|$))',
+        'g'
+      )
+    )
   ) {
     parameterOverrides
       .split(/,(?=(?:(?:[^"']*["|']){2})*[^"']*$)/g)
@@ -94,6 +100,7 @@ export function parseParameters(parameterOverrides: string): Parameter[] {
     // Yaml syntax
   } else if (isValidYAMLString(parameterOverrides)) {
     parameters_obj = parseYAML(parameterOverrides)
+    console.log(parameters_obj)
   } else {
     // Do Nothing
   }

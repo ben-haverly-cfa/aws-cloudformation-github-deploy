@@ -115,6 +115,10 @@ describe('Parse Parameters', () => {
       {
         ParameterKey: 'MyParam2',
         ParameterValue: 'MyValue2'
+      },
+      {
+        ParameterKey: 'MyParam3',
+        ParameterValue: 'asdfa='
       }
     ])
   })
