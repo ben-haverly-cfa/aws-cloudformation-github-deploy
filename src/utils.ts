@@ -1,8 +1,6 @@
 import * as aws from 'aws-sdk'
 import YAML from 'yaml'
-import * as fs from 'fs'
 import { Parameter } from 'aws-sdk/clients/cloudformation'
-import * as core from '@actions/core'
 
 export function isUrl(s: string): boolean {
   let url

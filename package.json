@@ -1,6 +1,6 @@
 {
   "name": "aws-actions-aws-cloudformation-github-deploy",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Deploys a AWS CloudFormation stack",
   "main": "lib/main.js",
   "scripts": {
@@ -26,12 +26,6 @@
     "url": "https://github.com/aws-actions/aws-cloudformation-github-deploy/issues"
   },
   "homepage": "https://github.com/aws-actions/aws-cloudformation-github-deploy#readme",
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run precommit",
-      "pre-push": "npm run test"
-    }
-  },
   "dependencies": {
     "@actions/core": "^1.2.4",
     "aws-sdk": "^2.725.0",

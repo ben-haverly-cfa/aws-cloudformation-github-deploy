@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as aws from 'aws-sdk'
-import { CreateChangeSetInput, CreateStackInput } from './main'
+import type { CreateChangeSetInput, CreateStackInput } from 'aws-sdk/clients/cloudformation';
 
 export type Stack = aws.CloudFormation.Stack
 
@@ -146,7 +146,7 @@ export async function deployStack(
       ChangeSetName: `${params.StackName}-CS`,
       ...{
         StackName: params.StackName,
-        TemplateBody: params.TemplateBody,
+        // TemplateBody: params.TemplateBody,
         TemplateURL: params.TemplateURL,
         Parameters: params.Parameters,
         Capabilities: params.Capabilities,

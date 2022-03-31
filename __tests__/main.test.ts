@@ -1,4 +1,4 @@
-import { run, Inputs } from '../src/main'
+import { run } from '../src/main'
 import * as path from 'path'
 import * as core from '@actions/core'
 import * as fs from 'fs'
@@ -39,8 +39,19 @@ const mockDescribeChangeSet = jest.fn()
 const mockDeleteChangeSet = jest.fn()
 const mockExecuteChangeSet = jest.fn()
 const mockCfnWaiter = jest.fn()
+const mockCreateBucket = jest.fn()
+const mockgetCallerIdentity = jest.fn()
+const mockUpload = jest.fn()
+
 jest.mock('aws-sdk', () => {
   return {
+    STS: jest.fn(() => ({
+      getCallerIdentity: mockgetCallerIdentity
+    })),
+    S3: jest.fn(() => ({
+      createBucket: mockCreateBucket,
+      upload: mockUpload
+    })),
     CloudFormation: jest.fn(() => ({
       createStack: mockCreateStack,
       updateStack: mockUpdateStack,
@@ -53,6 +64,8 @@ jest.mock('aws-sdk', () => {
     }))
   }
 })
+
+type Inputs = Record<string, string>;
 
 describe('Deploy CloudFormation Stack', () => {
   beforeEach(() => {
@@ -91,6 +104,33 @@ describe('Deploy CloudFormation Stack', () => {
       }
 
       throw new Error(`Unknown path ${pathInput}`)
+    })
+
+    mockCreateBucket.mockImplementation(() => {
+      return {
+        promise(): Promise<aws.S3.CreateBucketOutput> {
+          return Promise.resolve({})
+        }
+      }
+    })
+    mockgetCallerIdentity.mockImplementation(() => {
+      return {
+        promise(): Promise<aws.STS.GetCallerIdentityResponse> {
+          return Promise.resolve({
+            Account: '12345678'
+          })
+        }
+      }
+    })
+    mockUpload.mockImplementation(() => {
+      return {
+        promise(): Promise<unknown> {
+          return Promise.resolve({
+            Location:
+              'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml'
+          })
+        }
+      }
     })
 
     mockCreateStack.mockImplementation(() => {
@@ -197,7 +237,8 @@ describe('Deploy CloudFormation Stack', () => {
     })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -262,7 +303,8 @@ describe('Deploy CloudFormation Stack', () => {
     })
     expect(mockCreateStack).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -614,7 +656,8 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -625,7 +668,6 @@ describe('Deploy CloudFormation Stack', () => {
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockExecuteChangeSet).toHaveBeenNthCalledWith(1, {
@@ -685,7 +727,7 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -696,7 +738,8 @@ describe('Deploy CloudFormation Stack', () => {
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       TimeoutInMinutes: undefined
     })
     expect(mockExecuteChangeSet).toHaveBeenCalledTimes(0)
@@ -771,7 +814,6 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -782,7 +824,8 @@ describe('Deploy CloudFormation Stack', () => {
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       TimeoutInMinutes: undefined
     })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
@@ -878,7 +921,8 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -889,7 +933,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {
@@ -986,7 +1029,8 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -997,7 +1041,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockDeleteChangeSet).toHaveBeenCalledTimes(0)
@@ -1085,7 +1128,6 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -1096,7 +1138,8 @@ describe('Deploy CloudFormation Stack', () => {
       NotificationARNs: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       TimeoutInMinutes: undefined
     })
     expect(mockDeleteChangeSet).toHaveBeenCalledTimes(0)
@@ -1188,7 +1231,8 @@ describe('Deploy CloudFormation Stack', () => {
     expect(mockCreateStack).toHaveBeenCalledTimes(0)
     expect(mockCreateChangeSet).toHaveBeenNthCalledWith(1, {
       StackName: 'MockStack',
-      TemplateBody: mockTemplate,
+      TemplateURL:
+        'https://12345678-us-east-1-deploy.s3.amazonaws.com/MockStack/cloudformation.yaml',
       Capabilities: ['CAPABILITY_IAM'],
       Parameters: [
         { ParameterKey: 'AdminEmail', ParameterValue: 'no-reply@amazon.com' }
@@ -1199,7 +1243,6 @@ describe('Deploy CloudFormation Stack', () => {
       RollbackConfiguration: undefined,
       RoleARN: undefined,
       Tags: undefined,
-      TemplateURL: undefined,
       TimeoutInMinutes: undefined
     })
     expect(mockDeleteChangeSet).toHaveBeenNthCalledWith(1, {

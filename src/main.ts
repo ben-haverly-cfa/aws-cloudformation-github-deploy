@@ -12,122 +12,106 @@ import {
   parseParameters
 } from './utils'
 
-export type CreateStackInput = aws.CloudFormation.Types.CreateStackInput
-export type CreateChangeSetInput = aws.CloudFormation.Types.CreateChangeSetInput
-export type InputNoFailOnEmptyChanges = '1' | '0'
+import type { CloudFormation } from 'aws-sdk'
+import type { CreateStackInput } from 'aws-sdk/clients/cloudformation'
+
 export type InputCapabilities =
   | 'CAPABILITY_IAM'
   | 'CAPABILITY_NAMED_IAM'
   | 'CAPABILITY_AUTO_EXPAND'
 
-export type Inputs = {
-  [key: string]: string
+// The custom client configuration for the CloudFormation clients.
+const CUSTOM_USER_AGENT = 'aws-cloudformation-github-deploy-for-github-actions'
+
+const createBucketName: () => Promise<string> =
+async () => {
+  return new aws.STS()
+  .getCallerIdentity()
+  .promise()
+  .then(data =>`${data.Account}-us-east-1-deploy`)
 }
 
-// The custom client configuration for the CloudFormation clients.
-const customUserAgentString =
-  'aws-cloudformation-github-deploy-for-github-actions'
+/**
+ * Take a local template file path and upload it to S3, returning location of
+ * uploaded file
+ */
+const uploadTemplate: (stackName: string, template: string) => Promise<string> =
+async (stackName, template) => {
+  core.debug('Uploading CFN template to S3');
+
+  const { GITHUB_WORKSPACE = __dirname } = process.env;
+
+  const templateFilePath = path.isAbsolute(template)
+    ? template
+    : path.join(GITHUB_WORKSPACE, template);
+
+  const Body = fs.readFileSync(templateFilePath, 'utf8');
+
+  const Bucket = await createBucketName();
+
+  const s3 = new aws.S3()
+  await s3.createBucket({ Bucket }).promise()
+
+  const uploadResp = await s3
+    .upload({
+      Bucket,
+      Body,
+      Key: `${stackName}/cloudformation.yaml`
+    })
+    .promise()
+
+  return uploadResp.Location
+};
+
+
+const buildCfn: () => CloudFormation =
+() => {
+  const region = core.getInput('region', { required: false });
+
+  if (region.length > 0) {
+    return new aws.CloudFormation({
+      customUserAgent: CUSTOM_USER_AGENT,
+      region: region
+    });
+  }
+
+  return new aws.CloudFormation({ customUserAgent: CUSTOM_USER_AGENT });
+}
 
 export async function run(): Promise<void> {
   try {
-    // If the user provided a region use it, otherwise use the current region
-    let cfn = new aws.CloudFormation({
-      customUserAgent: customUserAgentString
-    })
-    const region = core.getInput('region', {
-      required: false
-    })
-    if (region.length > 0) {
-      cfn = new aws.CloudFormation({
-        customUserAgent: customUserAgentString,
-        region: region
-      })
-      core.debug('Setting region for cloudformation deployment to ' + region)
-    }
-
-    const { GITHUB_WORKSPACE = __dirname } = process.env
-
-    // Get inputs
-    const template = core.getInput('template', { required: true })
     const stackName = core.getInput('name', { required: true })
-    const capabilities = core.getInput('capabilities', {
-      required: false
-    })
-    const parameterOverrides = core.getInput('parameter-overrides', {
-      required: false
-    })
-    const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', {
-      required: false
-    })
-    const noExecuteChageSet = !!+core.getInput('no-execute-changeset', {
-      required: false
-    })
-    const noDeleteFailedChangeSet = !!+core.getInput(
-      'no-delete-failed-changeset',
-      {
-        required: false
-      }
-    )
-    const disableRollback = !!+core.getInput('disable-rollback', {
-      required: false
-    })
-    const timeoutInMinutes = parseNumber(
-      core.getInput('timeout-in-minutes', {
-        required: false
-      })
-    )
-    const notificationARNs = parseARNs(
-      core.getInput('notification-arns', {
-        required: false
-      })
-    )
-    const roleARN = parseString(
-      core.getInput('role-arn', {
-        required: false
-      })
-    )
-    const tags = parseTags(
-      core.getInput('tags', {
-        required: false
-      })
-    )
-    const terminationProtections = !!+core.getInput('termination-protection', {
-      required: false
-    })
+    const capabilities = core.getInput('capabilities', { required: false })
+    const parameterOverrides = core.getInput('parameter-overrides', { required: false })
+    const noEmptyChangeSet = !!+core.getInput('no-fail-on-empty-changeset', { required: false })
+    const noExecuteChageSet = !!+core.getInput('no-execute-changeset', { required: false })
+    const noDeleteFailedChangeSet = !!+core.getInput('no-delete-failed-changeset', { required: false })
+    const disableRollback = !!+core.getInput('disable-rollback', { required: false })
+    const timeoutInMinutes = parseNumber(core.getInput('timeout-in-minutes', { required: false }))
+    const notificationARNs = parseARNs(core.getInput('notification-arns', { required: false }))
+    const roleARN = parseString( core.getInput('role-arn', { required: false }) )
+    const tags = parseTags( core.getInput('tags', { required: false }) )
+    const terminationProtections = !!+core.getInput('termination-protection', { required: false })
+    const template = core.getInput('template', { required: true });
 
-    // Setup CloudFormation Stack
-    let templateBody
-    let templateUrl
+    const templateURL = isUrl(template) ? template : await uploadTemplate(stackName, template);
+    const parameters = parameterOverrides ? parseParameters(parameterOverrides.trim()) : undefined;
 
-    if (isUrl(template)) {
-      core.debug('Using CloudFormation Stack from Amazon S3 Bucket')
-      templateUrl = template
-    } else {
-      core.debug('Loading CloudFormation Stack template')
-      const templateFilePath = path.isAbsolute(template)
-        ? template
-        : path.join(GITHUB_WORKSPACE, template)
-      templateBody = fs.readFileSync(templateFilePath, 'utf8')
-    }
-
-    // CloudFormation Stack Parameter for the creation or update
     const params: CreateStackInput = {
       StackName: stackName,
-      Capabilities: [...capabilities.split(',').map(cap => cap.trim())],
+      Capabilities: capabilities.split(',').map(cap => cap.trim()),
       RoleARN: roleARN,
       NotificationARNs: notificationARNs,
       DisableRollback: disableRollback,
       TimeoutInMinutes: timeoutInMinutes,
-      TemplateBody: templateBody,
-      TemplateURL: templateUrl,
+      TemplateURL: templateURL,
       Tags: tags,
-      EnableTerminationProtection: terminationProtections
+      EnableTerminationProtection: terminationProtections,
+      Parameters: parameters,
     }
 
-    if (parameterOverrides) {
-      params.Parameters = parseParameters(parameterOverrides.trim())
-    }
 
+    const cfn = buildCfn();
     const stackId = await deployStack(
       cfn,
       params,
